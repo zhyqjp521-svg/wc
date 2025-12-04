@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date
 from pathlib import Path
 from textwrap import dedent
 
 from .manager import RentalManager
+from .models import format_date
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,7 +36,27 @@ def build_parser() -> argparse.ArgumentParser:
     rent.add_argument("device_id")
     rent.add_argument("customer_id")
     rent.add_argument("start_date", help="开始日期 YYYY-MM-DD")
+    rent.add_argument("--end-date", help="结束日期 YYYY-MM-DD")
+    rent.add_argument("--days", type=int, help="租期天数，与结束日期二选一")
+    rent.add_argument("--address", default="", help="交付/收货地址")
     rent.add_argument("--notes", default="")
+
+    auto = sub.add_parser("auto-schedule", help="自动排期创建租赁")
+    auto.add_argument("device_id")
+    auto.add_argument("customer_id")
+    auto.add_argument("desired_start", help="期望开始 YYYY-MM-DD")
+    auto.add_argument("days", type=int, help="租期天数")
+    auto.add_argument("--address", default="", help="交付/收货地址")
+    auto.add_argument("--notes", default="")
+
+    ai = sub.add_parser("ai-rent", help="AI 识别自然语言创建租赁")
+    ai.add_argument("device_id")
+    ai.add_argument("customer_id")
+    ai.add_argument("prompt", help="包含日期、租期、地址的描述")
+    ai.add_argument("--fallback-days", type=int, default=3, help="未识别到结束信息时使用的租期天数")
+
+    cal = sub.add_parser("calendar", help="输出当月设备排期日历")
+    cal.add_argument("--month", help="目标月份，格式 YYYY-MM，默认本月", default=None)
 
     ret = sub.add_parser("return", help="归还设备并计算费用")
     ret.add_argument("rental_id")
@@ -80,7 +102,10 @@ def main(argv: list[str] | None = None) -> None:
             device_id=args.device_id,
             customer_id=args.customer_id,
             start_date=args.start_date,
+            end_date=args.end_date,
+            days=args.days,
             notes=args.notes,
+            address=args.address,
         )
         print(
             dedent(
@@ -89,7 +114,53 @@ def main(argv: list[str] | None = None) -> None:
                 - 订单 ID: {rental.id}
                 - 设备 ID: {rental.device_id}
                 - 客户 ID: {rental.customer_id}
-                - 开始时间: {rental.start_date}
+                - 起止时间: {rental.start_date} ~ {rental.planned_end_date}
+                - 地址: {rental.address or '-'}
+                """
+            ).strip()
+        )
+    elif args.command == "auto-schedule":
+        rental = mgr.auto_schedule(
+            device_id=args.device_id,
+            customer_id=args.customer_id,
+            desired_start=args.desired_start,
+            days=args.days,
+            notes=args.notes,
+            address=args.address,
+        )
+        print(
+            dedent(
+                f"""
+                自动排期成功:
+                - 订单 ID: {rental.id}
+                - 设备: {mgr.devices[rental.device_id].name}
+                - 客户: {mgr.customers[rental.customer_id].name}
+                - 安排: {rental.start_date} ~ {rental.planned_end_date}
+                - 地址: {rental.address or '-'}
+                """
+            ).strip()
+        )
+    elif args.command == "ai-rent":
+        start, end, days, address, notes = mgr.parse_ai_prompt(args.prompt)
+        rental = mgr.rent_device(
+            device_id=args.device_id,
+            customer_id=args.customer_id,
+            start_date=format_date(start),
+            end_date=format_date(end) if end else None,
+            days=days or args.fallback_days,
+            address=address,
+            notes=notes,
+        )
+        print(
+            dedent(
+                f"""
+                AI 识别租赁成功:
+                - 订单 ID: {rental.id}
+                - 设备: {mgr.devices[rental.device_id].name}
+                - 客户: {mgr.customers[rental.customer_id].name}
+                - 起止: {rental.start_date} ~ {rental.planned_end_date}
+                - 地址: {rental.address or '-'}
+                - 备注: {rental.notes or notes or '无'}
                 """
             ).strip()
         )
@@ -113,6 +184,8 @@ def main(argv: list[str] | None = None) -> None:
         print_customers(mgr)
     elif args.command == "list-rentals":
         print_rentals(mgr)
+    elif args.command == "calendar":
+        print_calendar(mgr, month_input=args.month)
     else:
         parser.error("未知命令")
 
@@ -131,8 +204,22 @@ def print_customers(mgr: RentalManager) -> None:
 
 def print_rentals(mgr: RentalManager) -> None:
     rows = mgr.to_rows()["rentals"]
-    headers = ["订单ID", "设备", "客户", "开始", "归还", "状态", "总费用", "备注"]
+    headers = ["订单ID", "设备", "客户", "开始", "计划归还", "实际归还", "地址", "状态", "总费用", "备注"]
     print_table(headers, rows)
+
+
+def print_calendar(mgr: RentalManager, *, month_input: str | None) -> None:
+    today = date.today()
+    if month_input:
+        year, month = [int(x) for x in month_input.split("-")]
+    else:
+        year, month = today.year, today.month
+    days, rows = mgr.calendar_matrix(year, month)
+    headers = ["设备"] + [f"{d:02d}" for d in days]
+    table_rows: list[list[str]] = []
+    for name, cells in rows:
+        table_rows.append([name] + [cell or "·" for cell in cells])
+    print_table(headers, table_rows)
 
 
 def print_summary(mgr: RentalManager) -> None:

@@ -75,10 +75,12 @@ class Rental:
     device_id: str
     customer_id: str
     start_date: date
+    planned_end_date: date
     end_date: Optional[date] = None
     status: str = "active"  # active or closed
     notes: str = ""
     total_cost: Optional[float] = None
+    address: str = ""
 
     def to_dict(self) -> Dict:
         return {
@@ -86,10 +88,12 @@ class Rental:
             "device_id": self.device_id,
             "customer_id": self.customer_id,
             "start_date": format_date(self.start_date),
+            "planned_end_date": format_date(self.planned_end_date),
             "end_date": format_date(self.end_date) if self.end_date else None,
             "status": self.status,
             "notes": self.notes,
             "total_cost": self.total_cost,
+            "address": self.address,
         }
 
     @classmethod
@@ -99,8 +103,12 @@ class Rental:
             device_id=data["device_id"],
             customer_id=data["customer_id"],
             start_date=parse_date(data["start_date"]),
+            planned_end_date=parse_date(data.get("planned_end_date", data["end_date"]))
+            if data.get("planned_end_date") or data.get("end_date")
+            else parse_date(data["start_date"]),
             end_date=parse_date(data["end_date"]) if data.get("end_date") else None,
             status=data.get("status", "active"),
             notes=data.get("notes", ""),
             total_cost=float(data["total_cost"]) if data.get("total_cost") is not None else None,
+            address=data.get("address", ""),
         )
