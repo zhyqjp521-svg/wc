@@ -11,44 +11,49 @@
 - 输出月度设备排期日历（表格）
 
 ## 快速开始
-1. **准备环境**：系统自带 Python 3 并安装 `dateparser` 以支持自然语言日期解析。
+1. **准备环境（macOS 示例）**：
    ```bash
-   pip install dateparser
+   # 打开“终端”，在项目根目录创建并启用虚拟环境
+   python3 -m venv .venv
+   source .venv/bin/activate
+
+   # 安装依赖（包含自然语言日期解析所需的 dateparser）
+   python3 -m pip install -r requirements.txt
    ```
 2. **生成示例数据并查看概览**：
    ```bash
-   python -m rental_manager.cli seed
+   python3 -m rental_manager.cli seed
    ```
-3. **常用命令**：
+3. **常用命令**（macOS 终端同样适用，若未启用虚拟环境可将 `python3` 换成系统默认 Python 命令）：
    ```bash
    # 初始化空数据文件（默认 data/rentals.json）
-   python -m rental_manager.cli init
+   python3 -m rental_manager.cli init
 
    # 新增设备
-   python -m rental_manager.cli add-device "DJI Mavic 3" 无人机 360
+   python3 -m rental_manager.cli add-device "DJI Mavic 3" 无人机 360
 
    # 新增客户
-   python -m rental_manager.cli add-customer "张三" 13800001111 zhangsan@example.com
+   python3 -m rental_manager.cli add-customer "张三" 13800001111 zhangsan@example.com
 
    # 创建设备租赁（日期格式 YYYY-MM-DD，可用 --end-date 或 --days 指定租期）
-   python -m rental_manager.cli rent <设备ID> <客户ID> 2024-09-01 --days 3 --address "广州天河区" --notes "拍摄短片"
+   python3 -m rental_manager.cli rent <设备ID> <客户ID> 2024-09-01 --days 3 --address "广州天河区" --notes "拍摄短片"
 
    # 自动排期（找到最早可用时间段）
-   python -m rental_manager.cli auto-schedule <设备ID> <客户ID> 2024-09-01 4 --address "上海徐汇区"
+   python3 -m rental_manager.cli auto-schedule <设备ID> <客户ID> 2024-09-01 4 --address "上海徐汇区"
 
    # AI 识别自然语言租期与地址（仍需提供设备/客户 ID）
-   python -m rental_manager.cli ai-rent <设备ID> <客户ID> "9 月 2 号到 9 月 6 号，送至北京朝阳，备注直播" --fallback-days 5
+   python3 -m rental_manager.cli ai-rent <设备ID> <客户ID> "9 月 2 号到 9 月 6 号，送至北京朝阳，备注直播" --fallback-days 5
 
    # 归还并结算
-   python -m rental_manager.cli return <订单ID> 2024-09-05
+   python3 -m rental_manager.cli return <订单ID> 2024-09-05
 
    # 查看列表
-   python -m rental_manager.cli list-devices
-   python -m rental_manager.cli list-customers
-   python -m rental_manager.cli list-rentals
+   python3 -m rental_manager.cli list-devices
+   python3 -m rental_manager.cli list-customers
+   python3 -m rental_manager.cli list-rentals
 
    # 查看当月排期日历（默认本月，可用 --month 2024-09 指定）
-   python -m rental_manager.cli calendar --month 2024-09
+   python3 -m rental_manager.cli calendar --month 2024-09
    ```
 
 ## 目录结构
